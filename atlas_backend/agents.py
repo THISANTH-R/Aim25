@@ -5,17 +5,24 @@ import json
 import time
 
 class MicroAgent:
-    def __init__(self, browser, company):
+    def __init__(self, browser, company, log_callback=None):
         self.llm = LLMEngine()
         self.browser = browser
         self.company = company
+        self.log_callback = log_callback
+
+    def _log(self, message):
+        if self.log_callback:
+            self.log_callback(f"MicroAgent: {message}")
+        else:
+            print(f"MicroAgent: {message}")
 
     def research_field(self, field_name, description, context=""):
         """
         Targeted research for a specific field in the CompanyProfile.
         Returns the raw data extracted for that field.
         """
-        print(f"\n🕵️  MICRO AGENT: Researching '{field_name}'...")
+        self._log(f"Researching '{field_name}'...")
         
         # 1. Search Query Generation
         query = f"{self.company} {description}"
@@ -32,6 +39,7 @@ class MicroAgent:
         
         # Surf top 1 result (or 2 if needed)
         for url in urls[:1]:
+            self._log(f"Reading: {url}")
             scraped = self.browser.scrape_text(url)
             if scraped:
                 website_text += f"\n[Source: {url}]\n{scraped[:8000]}"
@@ -39,7 +47,7 @@ class MicroAgent:
         full_context = f"GOOGLE SEARCH:\n{serp_text[:4000]}\n\nWEBSITE CONTENT:\n{website_text}"
         
         # 3. Extraction Prompt
-        # tailored prompts for complex fields
+        self._log(f"Extracting structured data via LLM...")
         schema_hint = ""
         if field_name == "key_people":
             schema_hint = 'Return JSON: { "data": [ {"name": "Name", "title": "Title", "role_category": "Management"} ] }'
@@ -68,18 +76,27 @@ class MicroAgent:
         return result.get("data")
 
 class AutonomousLeadAgent:
-    def __init__(self, company_name):
-        print(f"DEBUG: Initializing AutonomousLeadAgent for {company_name}...")
+    def __init__(self, company_name, log_callback=None):
+        self.log_callback = log_callback
+        self._log(f"Initializing AutonomousLeadAgent for {company_name}...")
+        
         self.company = company_name
-        print("DEBUG: Initializing ResearchBrowser...")
+        self._log("Initializing Browser Engine...")
         self.browser = ResearchBrowser()
-        print("DEBUG: Browser initialized.")
+        self._log("Browser Online.")
+        
         self.profile = CompanyProfile(name=company_name, domain=company_name)
-        self.worker = MicroAgent(self.browser, company_name)
-        print("DEBUG: MicroAgent initialized.")
+        self.worker = MicroAgent(self.browser, company_name, log_callback)
+        self._log("MicroAgent Ready.")
+        
+    def _log(self, message):
+        if self.log_callback:
+            self.log_callback(f"Leader: {message}")
+        else:
+            print(f"Leader: {message}")
         
     def run_pipeline(self):
-        print(f"🚀 LEADER: Starting Autonomous Research for {self.company}")
+        self._log(f"🚀 Starting Autonomous Research for {self.company}")
         
         # 1. Identity & Basics
         desc_data = self.worker.research_field("description", "company overview mission")
@@ -118,10 +135,10 @@ class AutonomousLeadAgent:
             
         # 7. Contact
         contact_data = self.worker.research_field("contact_details", "contact email phone support page")
-        # Contact usually comes as a mixed bag, let's just save raw if string
         if isinstance(contact_data, str):
             if "@" in contact_data: self.profile.contact_email = contact_data
         
+        self._log("Research complete. Shutting down browser...")
         self.browser.close()
         
         # 8. BUILD KNOWLEDGE GRAPH
@@ -130,7 +147,7 @@ class AutonomousLeadAgent:
         return self.profile
 
     def _build_graph(self):
-        print("🕸️  Building Knowledge Graph...")
+        self._log("🕸️  Building Knowledge Graph...")
         
         # Central Node
         root_id = "node_company"
@@ -168,4 +185,4 @@ class AutonomousLeadAgent:
                 GraphEdge(source=root_id, target=lid, relation="has_office_in")
             )
 
-        print(f"✅ Graph Built: {len(self.profile.graph_nodes)} Nodes, {len(self.profile.graph_edges)} Edges.")
+        self._log(f"✅ Graph Built: {len(self.profile.graph_nodes)} Nodes, {len(self.profile.graph_edges)} Edges.")
