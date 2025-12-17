@@ -4,7 +4,7 @@ import os
 # Use a model good at following instructions. 
 # Recommended: "qwen2.5:7b" or "llama3.2" or "mistral"
 #"qwen3:4b-instruct-2507-q4_K_M qwen3:1.7b"
-MODEL_NAME = "qwen3:4b-instruct-2507-q4_K_M" 
+MODEL_NAME = "qwen3:1.7b" 
 TIMEOUT = 120 # Seconds for LLM generation
 
 # --- BROWSER CONFIGURATION ---
