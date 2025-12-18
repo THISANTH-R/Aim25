@@ -10,15 +10,11 @@ import shutil
 import pandas as pd
 from typing import List
 
-from agents import AutonomousLeadAgent  # Legacy fallback
-from optimized_pipeline import OptimizedResearchAgent  # New optimized pipeline
+from agents import AutonomousLeadAgent
 from report_generator import generate_report
 from bulk_reporter import generate_bulk_excel
 from data_models import CompanyProfile
 import config
-
-# Feature flag from config
-USE_OPTIMIZED_PIPELINE = config.USE_OPTIMIZED_PIPELINE
 
 app = FastAPI(title="Atlas API")
 
@@ -57,7 +53,6 @@ def run_agent_process(company: str, websocket: WebSocket, loop):
     """
     Runs the agent in a thread and pushes logs to the async loop
     so they can be sent over the websocket.
-    Uses OptimizedResearchAgent (new parallel pipeline) or AutonomousLeadAgent (legacy).
     """
     
     def log_bridge(msg):
@@ -68,13 +63,7 @@ def run_agent_process(company: str, websocket: WebSocket, loop):
         )
 
     try:
-        if USE_OPTIMIZED_PIPELINE:
-            log_bridge("🚀 Using OPTIMIZED parallel pipeline...")
-            agent = OptimizedResearchAgent(company, log_callback=log_bridge)
-        else:
-            log_bridge("📋 Using legacy sequential pipeline...")
-            agent = AutonomousLeadAgent(company, log_callback=log_bridge)
-        
+        agent = AutonomousLeadAgent(company, log_callback=log_bridge)
         profile = agent.run_pipeline()
         
         # Save Outputs
@@ -99,7 +88,6 @@ def run_agent_process(company: str, websocket: WebSocket, loop):
 def run_bulk_process(file_path: str, websocket: WebSocket, loop):
     """
     Runs bulk processing on a CSV file.
-    Uses OptimizedResearchAgent (new parallel pipeline) or AutonomousLeadAgent (legacy).
     """
     def log_bridge(msg):
         asyncio.run_coroutine_threadsafe(
@@ -124,21 +112,18 @@ def run_bulk_process(file_path: str, websocket: WebSocket, loop):
         
         profiles = []
         
+        # Limit removed for production run
+        # MAX_DEMO = 3 
         processed_count = 0
         
-        pipeline_type = "OPTIMIZED parallel" if USE_OPTIMIZED_PIPELINE else "legacy sequential"
-        log_bridge(f"🚀 Starting {pipeline_type} pipeline for {total} records.")
+        log_bridge(f"Starting full processing of {total} records.")
 
         for i, domain in enumerate(domains):
-            log_bridge(f"═══ Processing {i+1}/{total}: {domain} ═══")
+            log_bridge(f"--- Processing {i+1}/{total}: {domain} ---")
             
             try:
-                # Use optimized or legacy agent based on feature flag
-                if USE_OPTIMIZED_PIPELINE:
-                    agent = OptimizedResearchAgent(domain, log_callback=log_bridge)
-                else:
-                    agent = AutonomousLeadAgent(domain, log_callback=log_bridge)
-                
+                # Use domain as company name initially, agent might refine it
+                agent = AutonomousLeadAgent(domain, log_callback=log_bridge)
                 profile = agent.run_pipeline()
                 profiles.append(profile)
                 

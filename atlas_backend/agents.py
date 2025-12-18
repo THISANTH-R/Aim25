@@ -1,7 +1,6 @@
 from llm_engine import LLMEngine
 from browser_engine import ResearchBrowser
 from data_models import CompanyProfile, KeyPerson, GraphNode, GraphEdge
-import config
 import json
 import time
 
@@ -32,15 +31,13 @@ class MicroAgent:
 
     def research_field(self, field_name, description, context=""):
         """
-        Robust N-Attempt Pipeline with Parallel Search & Engine Swapping.
-        Retries controlled by config.MAX_RETRIES.
+        Robust 5-Attempt Pipeline with Parallel Search & Engine Swapping.
         """
-        max_retries = config.MAX_RETRIES
         data = None
-        for attempt in range(1, max_retries + 1):
+        for attempt in range(1, 6):
             if data and not self._needs_retry(data):
                 break
-            self._log(f"🔄 Attempt {attempt}/{max_retries} for '{field_name}'...")
+            self._log(f"🔄 Attempt {attempt}/5 for '{field_name}'...")
             data = self._execute_step_strategy(field_name, description, attempt)
             
             if self._needs_retry(data):
@@ -114,8 +111,8 @@ class MicroAgent:
             q = f"{self.company} business profile info"
             serp_text, urls = self.browser.search_google(q)
 
-        elif attempt >= 5:
-            # Last Resort - DDG Only (for attempts 5+)
+        elif attempt == 5:
+            # Last Resort - DDG Only
             self._log("🚀 Strategy: Last Resort DDG")
             q = f"{self.company} {field_name}"
             serp_text, urls = self.browser.search_duckduckgo(q)
